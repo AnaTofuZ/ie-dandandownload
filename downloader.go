@@ -67,6 +67,8 @@ func (d *downloadInfo) doDownalod(ctx context.Context, url, outputPath string) e
 	return nil
 }
 
+// https://ie.u-ryukyu.ac.jp/students/hoge -> ie.u-ryukyu.ac.jp/students/hoge/index.html
+
 func url2outputPath(ctx context.Context, url string) string {
 	startDomain := strings.Index(url, "://")
 	if strings.HasSuffix(url, "/") {

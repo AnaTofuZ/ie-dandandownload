@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -30,17 +31,21 @@ func (d *DanDownload) Run() int {
 	}
 
 	wg := &sync.WaitGroup{}
+	cpus := runtime.NumCPU()
+	semaphore := make(chan bool, cpus)
 	ctx := context.Background()
 
 	for _, url := range *urls {
+		wg.Add(1)
 		go func(ctx context.Context, url string) {
-			wg.Add(1)
+			defer wg.Done()
+			semaphore <- true
 			err := di.exec(ctx, url)
 			if err != nil {
 				fmt.Println(err)
 				ctx.Done()
 			}
-			wg.Done()
+			<-semaphore
 		}(ctx, url)
 	}
 	wg.Wait()

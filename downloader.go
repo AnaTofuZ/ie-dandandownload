@@ -1,7 +1,9 @@
 package dandandowlonad
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -26,42 +28,43 @@ func newDonloadInfo() *downloadInfo {
 
 func (d *downloadInfo) exec(ctx context.Context, url string) error {
 	outputPath := url2outputPath(ctx, url)
-	outputPathDir := createOutputDirPathString(ctx, outputPath)
-	if err := mkdirOutputDir(ctx, outputPathDir); err != nil {
-		return err
-	}
 	err := d.doDownalod(ctx, url, outputPath)
 	if err != nil {
 		return err
 	}
 
-	/*
-		f, err := os.Open(outputPath)
-		if err != nil {
-			return err
-		}
+	f, err := os.Open(outputPath)
+	if err != nil {
+		return err
+	}
 
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-	*/
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		//fmt.Println(scanner.Text())
+	}
 	return nil
 }
 
 func (d *downloadInfo) doDownalod(ctx context.Context, url, outputPath string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("[404] Not Found %s", url)
+	}
+
+	outputPathDir := createOutputDirPathString(ctx, outputPath)
+	if err := mkdirOutputDir(ctx, outputPathDir); err != nil {
+		return err
+	}
 
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	resp, err := http.Get(url)
-
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
 
 	_, err = io.Copy(file, resp.Body)
 	return nil

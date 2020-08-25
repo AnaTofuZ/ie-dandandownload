@@ -1,7 +1,6 @@
 package dandandowlonad
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -16,14 +15,37 @@ type downloadInfo struct {
 	mux    sync.RWMutex
 }
 
-func (d *downloadInfo) SetURL(url string) {
-	d.mux.Lock()
-	d.urlMap[url]++
-	d.mux.Unlock()
-}
-
 func newDonloadInfo() *downloadInfo {
 	return &downloadInfo{}
+}
+
+func (d *downloadInfo) exec2(ctx context.Context, url, outputPATH, outputDIR string) error {
+	if fileExists(outputPATH) {
+		fmt.Printf("[INFO] already donwloaded : %s \n", outputPATH)
+		return nil
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("[404] Not Found %s", url)
+	}
+
+	if err := mkdirOutputDir(ctx, outputDIR); err != nil {
+		return err
+	}
+
+	file, err := os.Create(outputPATH)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	return nil
 }
 
 func (d *downloadInfo) exec(ctx context.Context, url string) error {
@@ -33,19 +55,15 @@ func (d *downloadInfo) exec(ctx context.Context, url string) error {
 		return err
 	}
 
-	f, err := os.Open(outputPath)
-	if err != nil {
-		return err
-	}
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		//fmt.Println(scanner.Text())
-	}
 	return nil
 }
 
 func (d *downloadInfo) doDownalod(ctx context.Context, url, outputPath string) error {
+	if fileExists(outputPath) {
+		fmt.Printf("[INFO] already donwloaded : %s \n", outputPath)
+		return nil
+	}
+
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -96,4 +114,12 @@ func mkdirOutputDir(ctx context.Context, outputPath string) error {
 		return os.MkdirAll(outputPath, 0755)
 	}
 	return nil
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
